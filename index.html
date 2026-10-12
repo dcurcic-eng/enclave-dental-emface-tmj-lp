@@ -242,6 +242,14 @@ section{width:100%}
 .field input:focus,.field textarea:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(178,144,75,.15)}
 .submit-btn{background:var(--gold);color:#fff;border:none;border-radius:9999px;padding:17px 40px;font-size:15px;font-weight:700;letter-spacing:.5px;cursor:pointer;box-shadow:var(--shadow-card)}
 .privacy{color:var(--muted);font-size:12.5px;text-align:center}
+.form-consent{display:flex;align-items:flex-start;gap:12px}
+.form-consent input{flex:none;width:18px;height:18px;margin-top:2px;accent-color:var(--gold);cursor:pointer}
+.form-consent label{color:var(--ink-2);font-size:12.5px;line-height:1.5;font-style:italic;cursor:pointer}
+.form-error{display:none;background:#fdf0ee;border:1px solid #f0c9c2;color:#a8432f;border-radius:12px;padding:12px 16px;font-size:13.5px;font-weight:600}
+.submit-btn:disabled{opacity:.6;cursor:not-allowed}
+.form-success-message{flex:1;background:#fff;border-radius:24px;box-shadow:0 8px 28px #4d515414;padding:40px;display:flex;flex-direction:column;gap:12px;justify-content:center;text-align:center}
+.form-success-message h3{font-family:var(--cond);font-weight:600;color:var(--ink);font-size:32px;letter-spacing:.5px}
+.form-success-message p{color:var(--ink-2);font-size:15px;line-height:1.5}
 
 .faq{background:var(--cream);padding:88px 64px 96px}
 .accordion{max-width:980px;margin:40px auto 0;display:flex;flex-direction:column}
@@ -608,17 +616,22 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           <div class="row"><span class="d">Sunday</span><span class="t closed">Closed</span></div>
         </div>
       </div>
-      <form class="form-card" id="request-form" onsubmit="return quizFormSubmit(event)">
+      <form class="form-card staff-benefit-form" id="request-form" novalidate>
         <div class="ft">REQUEST YOUR CONSULTATION</div>
         <p class="fs">Tell us a little about you and we'll reach out to schedule your visit.</p>
         <div class="form-note"><i data-lucide="badge-percent"></i><span>Fill out this form to lock in your <strong>20% off</strong> new-patient discount. This offer applies only to requests submitted on this page.</span></div>
         <div class="field-row">
-          <div class="field"><label>First Name</label><input type="text" placeholder="Jordan" required></div>
-          <div class="field"><label>Last Name</label><input type="text" placeholder="Alvarez" required></div>
+          <div class="field"><label for="first_name">First Name</label><input id="first_name" name="first_name" type="text" placeholder="Jordan" autocomplete="given-name" required></div>
+          <div class="field"><label for="last_name">Last Name</label><input id="last_name" name="last_name" type="text" placeholder="Alvarez" autocomplete="family-name" required></div>
         </div>
-        <div class="field"><label>Phone</label><input type="tel" placeholder="(407) 000-0000" required></div>
-        <div class="field"><label>Email</label><input type="email" placeholder="you@email.com" required></div>
-        <div class="field"><label>How can we help?</label><textarea placeholder="Share your symptoms or questions..."></textarea></div>
+        <div class="field"><label for="phone">Phone</label><input id="phone" name="phone" type="tel" placeholder="(407) 000-0000" autocomplete="tel" required></div>
+        <div class="field"><label for="email">Email</label><input id="email" name="email" type="email" placeholder="you@email.com" autocomplete="email" required></div>
+        <div class="field"><label for="message">How can we help?</label><textarea id="message" name="message" placeholder="Share your symptoms or questions..."></textarea></div>
+        <div class="form-consent">
+          <input id="newsletter" name="newsletter" type="checkbox" required>
+          <label for="newsletter">By submitting this form, you agree to receive marketing text messages, alerts, and notifications from Enclave Dental. Message frequency may vary. Rates may be applied. You can opt out at any time by replying STOP.</label>
+        </div>
+        <div id="form-error" class="form-error" role="alert" aria-live="polite"></div>
         <button type="submit" class="submit-btn btn">REQUEST MY CONSULTATION</button>
         <p class="privacy">We respect your privacy. Your details are never shared.</p>
       </form>
@@ -728,7 +741,122 @@ qNext.onclick=()=>{
 };
 qBack.onclick=()=>{if(qIndex>0){qIndex--;renderQuiz();}};
 renderQuiz();
-function quizFormSubmit(e){e.preventDefault();alert("Thank you! We'll reach out shortly to schedule your consultation and apply your 20% off new-patient discount.");e.target.reset();return false;}
+(function () {
+  const forms = document.querySelectorAll('.staff-benefit-form');
+
+  forms.forEach((form) => {
+    const submitBtn = form.querySelector('.submit-btn');
+    const errEl = form.querySelector('#form-error');
+
+    function showError(msg) {
+      if (!errEl) return;
+      errEl.textContent = msg;
+      errEl.style.display = msg ? 'block' : 'none';
+    }
+
+    form.addEventListener('submit', async function (e) {
+      e.preventDefault();
+      showError('');
+      submitBtn.disabled = true;
+
+      const first_name = form.querySelector('#first_name').value?.trim() || '';
+      const last_name = form.querySelector('#last_name').value?.trim() || '';
+      const email = form.querySelector('#email').value?.trim() || '';
+      let phone = (form.querySelector('#phone').value || '').replace(/\D/g, '');
+      if (phone.length === 11 && phone.startsWith('1')) phone = phone.slice(1);
+      const message = form.querySelector('#message').value?.trim() || '';
+      const consent = form.querySelector('#newsletter');
+      const checkbox = consent?.checked ? 'on' : '';
+
+      if (!first_name || !last_name) {
+        showError('Please enter your first and last name.');
+        submitBtn.disabled = false;
+        return;
+      }
+
+      const phoneRe = /^[0-9]{10}$/;
+      if (!phoneRe.test(phone)) {
+        showError('Please enter a 10-digit US phone number.');
+        submitBtn.disabled = false;
+        return;
+      }
+
+      const emailRe = /^[^\s@]+@[^\s@]+\.[A-Za-z]{2,}$/;
+      if (!emailRe.test(email)) {
+        showError('Please enter a valid email address.');
+        submitBtn.disabled = false;
+        return;
+      }
+
+      if (!checkbox) {
+        showError('Please check the consent box to continue.');
+        submitBtn.disabled = false;
+        return;
+      }
+
+      const fd = new FormData();
+      fd.append('first_name', first_name);
+      fd.append('last_name', last_name);
+      fd.append('phone', `+1${phone}`);
+      fd.append('email', email);
+      fd.append('checkbox', checkbox);
+      fd.append('organization', '849a2e4c-97f6-410f-be2a-2c3331bb5f08');
+      fd.append('form', '603');
+      fd.append('message', message);
+      fd.append('form_location', window.location.href);
+
+      // Detect ad tracking params from URL
+      const urlParams = new URLSearchParams(window.location.search);
+      const trackingMap = {
+        gclid: 'google',
+        wbraid: 'google',
+        gbraid: 'google',
+        fbclid: 'meta',
+        ttclid: 'tiktok',
+      };
+      let trackingParam = '';
+      let adSource = 'other';
+      for (const [param, source] of Object.entries(trackingMap)) {
+        const val = urlParams.get(param);
+        if (val) {
+          trackingParam = val;
+          adSource = source;
+          break;
+        }
+      }
+      fd.append('tracking_param', trackingParam);
+      fd.append('ad_source', adSource);
+
+      try {
+        const res = await fetch(
+          'https://api.aevadigital.com/api/v1/contacts/add_contact_from_form/',
+          {
+            method: 'POST',
+            body: fd,
+          }
+        );
+
+        if (!res.ok) {
+          const txt = await res.text().catch(() => res.statusText);
+          throw new Error(txt || 'Server error');
+        }
+
+        window.dataLayer = window.dataLayer || [];
+        window.dataLayer.push({ 'event': 'form-success' });
+
+        form.style.display = 'none';
+        const thankYou = document.createElement('div');
+        thankYou.className = 'form-success-message';
+        thankYou.innerHTML = '<h3>Thank You!</h3><p>Your consultation request has been received. We\'ll be in touch shortly to schedule your visit and apply your 20% off new-patient discount.</p>';
+        form.parentNode.insertBefore(thankYou, form.nextSibling);
+      } catch (err) {
+        console.error(err);
+        showError('Submission failed. Please try again.');
+        submitBtn.disabled = false;
+      }
+    });
+  });
+})();
 
 document.querySelectorAll('.faq-item').forEach(item=>{
   item.querySelector('.faq-q').addEventListener('click',()=>{
